@@ -18,7 +18,7 @@ ClickLoop();
 function delayedLoop()
 {
 $("#goldenCookie").click();
-
+$("a.option.large.framed.title").click();
 
 var grandmaResearch = /Switch/gi;
 var sellLoop = /Revoke.*Elder.*Covenant.*Switch/g;
@@ -43,14 +43,16 @@ var cookiesPatt = /^[0-9,]+/;
 		cps = parseFloat(craw.replace("per second : ","").replace(/,/g,""));
         
     
-        for (var i=0;i<10;i++){
-            var prodRaw = $(Game.ObjectsById[i].tooltip()).text().split(producePatt);
-            if (prodRaw[1] != undefined && prodRaw[1] > 0){
-                cookiesPer[i] = parseFloat(prodRaw[4].replace(/,/g,""));
-                totalCookies[i] = parseFloat(prodRaw[2].replace(/,/g,"")) ;
+        for (var i=0;i<14;i++){
+            var prodText = $(Game.ObjectsById[i].tooltip()).find(".data").text();
+            var prodRaw = prodText.split(producePatt);
+            //console.log("prod", prodText, prodRaw);
+            if (prodText != undefined && prodRaw[2] > 0){
+                cookiesPer[i] = parseFloat(prodRaw[1].replace(/,/g,""));
+                totalCookies[i] = parseFloat(prodRaw[5].replace(/,/g,"")) ;
                 price[i] = parseFloat($("#product"+i+" .content .price").text().replace(/,/g,""));
                 pricePerCookie[i] = price[i] / cookiesPer[i];
-                //console.log(price[i], cookiesPer[i], totalCookies[i], pricePerCookie[i]);
+                //console.log(i, price[i], cookiesPer[i], totalCookies[i], pricePerCookie[i], prodRaw);
 
             }
         }
@@ -67,36 +69,46 @@ var cookiesPatt = /^[0-9,]+/;
     
         for(var i=0;i<10;i++){
             var U0C = $("#upgrade" + i);
-            
-            
-                //console.log(i+"possible");
-                if (grandmaResearch.test(U0C.attr('onmouseover'))){
-                    U0C.css('background-color','red');
-                    
-                }
-                else {
-                    
-                    U0C.css('background-color','green');
-                    if(U0C.attr('class') == "crate upgrade enabled")
-                        U0C.click();
+
+                
+                click=U0C.attr("onclick");
+                if (click != undefined){
+                    var upgrade=click.split("[")[1].split("]")[0];
+                    //console.log(Game.UpgradesById[upgrade].pool);
+                    if ((U0C.attr('class') == "crate upgrade selector enabled")||(Game.UpgradesById[upgrade].pool == "toggle")){
+                        U0C.css('background-color','red');
+
+                    }
+                    else {
+
+
+
+
+                        if((Game.UpgradesById[upgrade].pool == "cookie") || (Game.UpgradesById[upgrade].pool == "") ){
+                            U0C.css('background-color','green');
+                            if(U0C.attr('class') == "crate upgrade enabled")
+                            if ((Game.UpgradesById[upgrade].basePrice < cps*10) || ((cps * 1200 * 7 * 10+Game.UpgradesById[upgrade].basePrice) < currCookies)) {
+                                U0C.click();
+                            }
+                        }
+                    }
                 }
             
             
         }
-                
-        if ($("#product9 .content .owned").text() < 1){
-            for(var i=9;i>=0;i--){
-                var P0C = $("#product" + i);
-                if ($("#product"+i+" .content .owned").text() < 1){
-                    $("#product"+i+" .content .owned").css('background-color','green');
-                    
+        for(var i=0;i<14;i++){
+            var P0C = $("#product" + i);
+            if ($("#product" + i +" .content .owned").text() < 1){
+                if (i==0){
+                   P0C.click();
+                } else if ($("#product" + (i-1) +" .content .owned").text() > 10){
                     if(P0C.attr('class') == "product unlocked enabled"){
                         P0C.click();
-                    }
+                    }                
                 }
             }
         }
-    
+
     
     for (var i=0;i<totalCookies.length;i++){
         $("#product"+i+" .content .owned").css('color','black');
@@ -129,8 +141,8 @@ var cookiesPatt = /^[0-9,]+/;
    //console.log( cps*100 +" "+ parseInt($("#product"+buyIndex+" .content .price").text().replace(/,/g,"")) +" "+ (cps * 1200 * 7 * 10)+" "+ parseInt($("#product"+buyIndex+" .content .price").text().replace(/,/g,"")) +" "+ cookiesPatt.exec($("#cookies").text().replace(/,/g,"")));
     if(P0C.attr('class') == "product unlocked enabled"){
         var buyPrice = parseInt($("#product"+buyIndex+" .content .price").text().replace(/,/g,""),10);
-        console.log(format_cookies((cps * 1200 * 7 * 10+buyPrice) - currCookies));
-        if (( (cps * 1200 * 7 * 10+buyPrice) < currCookies ) || ( pricePerCookie[buyIndex]/ (cps / totalPrice) < 10000 )){
+        //console.log(format_cookies((cps * 1200 * 7 * 10+buyPrice) - currCookies), cps, buyPrice );
+        if (( (cps * 1200 * 7 * 10+buyPrice) < currCookies ) || ( currCookies > buyPrice*Math.sqrt(cps)) ){
 			P0C.click();
         }
     }
@@ -157,5 +169,4 @@ function format_cookies(bytes)
     var i = parseInt(Math.log(bytes) / Math.log(1000));
     return Math.round(bytes *10 / Math.pow(1000, i), 2) /10 + sizes[i];
 }
-
 
