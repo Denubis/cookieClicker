@@ -1,58 +1,92 @@
 // ==UserScript==
 // @name        Auto Cookie Clicker
-// @author      Reblerebel
+// @author      Brian Ballsun-Stanton (originally by Reblerebel)
 // @namespace   *
 // @description Clicks the cookie automatically, buys upgrades automatically, clicks golden cookies automatically
 // @include     http://orteil.dashnet.org/*
-// @version     1.5
+// @version     2
 // @require     http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js
+// @require     https://raw.githubusercontent.com/adamwdraper/Numeral-js/master/numeral.js
+// @require     https://raw.githubusercontent.com/MikeMcl/decimal.js/master/decimal.min.js
 // ==/UserScript==
 
 function ClickLoop()
 {
-$("#bigCookie").click();
-
+    if ($("#clickCookie").prop("checked")){
+        $("#bigCookie").click();
+    }
 }
 ClickLoop();
 
+function deWord(number){
+    if (number !== undefined) {
+        number=number.toString();
+        clean=number.replace(/,/g,"");
+        return new Decimal(clean);
+    } else {
+        return undefined;
+    }
+    //console.log(number, foo.toString());
+    
+}
+
+$("#topBar").append("<div><input type='checkbox' id='elderPledge'>Elder Pledge</div>");
+$("#topBar").append("<div><input type='checkbox' id='clickCookie' checked>Clicker</div>");
+$("#topBar").append("<div><input type='checkbox' id='festiveBiscuit' >Fool's Biscuit</div>");
+
 function delayedLoop()
 {
-$("#goldenCookie").click();
-$("a.option.large.framed.title").click();
-
+    //console.log(Game);
+if ($("#clickCookie").prop("checked")){
+    $("#goldenCookie").click();
+    $("#seasonPopup").click();
+    $("a.option.large.framed.title").click();
+}
 var grandmaResearch = /Switch/gi;
 var sellLoop = /Revoke.*Elder.*Covenant.*Switch/g;
 
-
-   
+var numWrinklers=0;
+for (var i in Game.wrinklers) {  if (Game.wrinklers[i].phase == 2)  numWrinklers++; }    
+if (numWrinklers >= 10)
+    Game.CollectWrinklers();
     
 var cpatt = /[0-9,.]+$/;
 var producePatt = /[^0-9,.]+/g;
+var cookiesPerItemPatt = /each [a-z ]+ produces ([0-9,.e+]+) cookies per second•/;
 var cookiesPer = new Array();
 var price = new Array();
+var amount = new Array();
 var totalCookies = new Array();
 var pricePerCookie = new Array();
 var cookiesPatt = /^[0-9,]+/;
-
+var cookieMult = new Decimal(1200*7*10);
 
     $('.cleanMe').remove();
     
-    var craw = $("#cookies div").text();
-    var cps =0;
-    if (craw.length > 10){
-		cps = parseFloat(craw.replace("per second : ","").replace(/,/g,""));
-        
     
+    
+    var cps = deWord(Game.cookiesPs);
+    if (cps > 0){
         for (var i=0;i<14;i++){
+            storeItem = Game.ObjectsById[i];
             var prodText = $(Game.ObjectsById[i].tooltip()).find(".data").text();
-            var prodRaw = prodText.split(producePatt);
+            //var prodRaw = prodText.split(producePatt);
+            var prodRaw = cookiesPerItemPatt.exec(prodText);
             //console.log("prod", prodText, prodRaw);
-            if (prodText != undefined && prodRaw[2] > 0){
-                cookiesPer[i] = parseFloat(prodRaw[1].replace(/,/g,""));
-                totalCookies[i] = parseFloat(prodRaw[5].replace(/,/g,"")) ;
-                price[i] = parseFloat($("#product"+i+" .content .price").text().replace(/,/g,""));
-                pricePerCookie[i] = price[i] / cookiesPer[i];
-                //console.log(i, price[i], cookiesPer[i], totalCookies[i], pricePerCookie[i], prodRaw);
+            
+            
+            
+            
+            if (storeItem.amount > 0){
+                //console.log(storeItem);
+                //console.log(Game);
+                cookiesPer[i] = deWord(prodRaw[1]);
+                //console.log(cookiesPer[i]);
+                totalCookies[i] = deWord(storeItem.totalCookies);
+                price[i] = deWord(storeItem.price);
+                amount[i] = deWord(storeItem.amount);
+                pricePerCookie[i] = price[i].dividedBy(cookiesPer[i]);
+                //console.log(i, price[i].toString(), cookiesPer[i].toString(), totalCookies[i].toString(), pricePerCookie[i].toString(), prodRaw[1]);
 
             }
         }
@@ -60,8 +94,8 @@ var cookiesPatt = /^[0-9,]+/;
     //console.log("CpS: "+cps);
         
     }
-    var totalPrice = 0;
-    var currCookies = parseInt(cookiesPatt.exec($("#cookies").text().replace(/,/g,"")),10);    
+    var totalPrice = new Decimal(0);
+    var currCookies = deWord(Game.cookies);
 
     var buyIndex = 0;
     
@@ -74,7 +108,24 @@ var cookiesPatt = /^[0-9,]+/;
                 click=U0C.attr("onclick");
                 if (click != undefined){
                     var upgrade=click.split("[")[1].split("]")[0];
-                    //console.log(Game.UpgradesById[upgrade].pool);
+                    //console.log(Game.UpgradesById[upgrade]);
+                    if ($("#elderPledge").prop("checked")){
+
+                        if (Game.UpgradesById[upgrade].name == "Elder Pledge"){
+                            if(U0C.attr('class') == "crate upgrade enabled"){
+                                U0C.click();
+                            }
+                        }
+                    }
+                    if ($("#festiveBiscuit").prop("checked")){
+
+                        if (Game.UpgradesById[upgrade].name == "Fool's biscuit"){
+                            if(U0C.attr('class') == "crate upgrade enabled"){
+                                U0C.click();
+                            }
+                        }
+                    }
+                    
                     if ((U0C.attr('class') == "crate upgrade selector enabled")||(Game.UpgradesById[upgrade].pool == "toggle")){
                         U0C.css('background-color','red');
 
@@ -86,9 +137,12 @@ var cookiesPatt = /^[0-9,]+/;
 
                         if((Game.UpgradesById[upgrade].pool == "cookie") || (Game.UpgradesById[upgrade].pool == "") ){
                             U0C.css('background-color','green');
-                            if(U0C.attr('class') == "crate upgrade enabled")
-                            if ((Game.UpgradesById[upgrade].basePrice < cps*10) || ((cps * 1200 * 7 * 10+Game.UpgradesById[upgrade].basePrice) < currCookies)) {
-                                U0C.click();
+                            if(U0C.attr('class') == "crate upgrade enabled") {
+                                var upgradeBasePrice = deWord(Game.UpgradesById[upgrade].basePrice);
+                                console.log(upgradeBasePrice.toString());
+                                if (upgradeBasePrice.lessThan(cps.times(10)) || currCookies.greaterThan(cps.times(cookieMult).plus(upgradeBasePrice))) {
+                                    U0C.click();
+                                }
                             }
                         }
                     }
@@ -114,9 +168,9 @@ var cookiesPatt = /^[0-9,]+/;
         $("#product"+i+" .content .owned").css('color','black');
 		$("#product"+i+" .content .owned").css('opacity','.5');
         $("#product"+i+" .content .owned").css('font-size','2em');
-        totalPrice += totalCookies[i];
+        totalPrice = totalPrice.plus(totalCookies[i]);
         //console.log(i+": "+pricePerCookie[i]);
-        if (pricePerCookie[i] < pricePerCookie[buyIndex])
+        if (pricePerCookie[i].lessThan(pricePerCookie[buyIndex]))
             buyIndex = i;
        //console.log(cookiesPer[i]+ " "+price[i]);
         
@@ -132,21 +186,20 @@ var cookiesPatt = /^[0-9,]+/;
     
     var P0C = $("#product" + buyIndex);
     
-   /* if (sellLoop.test($("#upgrade0").attr('onmouseover'))){
-        $("#upgrade0").css('background-color','yellow');
-        for (var i=0;i<10;i++){
-        	Game.ObjectsById[i].sell();
-        }
-    } else { */       
+    
    //console.log( cps*100 +" "+ parseInt($("#product"+buyIndex+" .content .price").text().replace(/,/g,"")) +" "+ (cps * 1200 * 7 * 10)+" "+ parseInt($("#product"+buyIndex+" .content .price").text().replace(/,/g,"")) +" "+ cookiesPatt.exec($("#cookies").text().replace(/,/g,"")));
     if(P0C.attr('class') == "product unlocked enabled"){
-        var buyPrice = parseInt($("#product"+buyIndex+" .content .price").text().replace(/,/g,""),10);
+        //var buyPrice = parseInt($("#product"+buyIndex+" .content .price").text().replace(/,/g,""),10);
         //console.log(format_cookies((cps * 1200 * 7 * 10+buyPrice) - currCookies), cps, buyPrice );
+        /*
         if (( (cps * 1200 * 7 * 10+buyPrice) < currCookies ) || ( currCookies > buyPrice*Math.sqrt(cps)) ){
 			P0C.click();
+        }*/
+        
+        if (currCookies.greaterThan(cps.times(cookieMult).plus(price[buyIndex])) || currCookies.greaterThan(price[buyIndex].times(cps.sqrt()))){
+            P0C.click();
         }
     }
-    //}
     
     //console.log ("total cookies " + totalPrice);
     //console.log ("multiplier " + cps / totalPrice);
@@ -155,7 +208,7 @@ var cookiesPatt = /^[0-9,]+/;
 }
 delayedLoop();
 
-window.setInterval(ClickLoop,1);
+window.setInterval(ClickLoop,0);
 window.setInterval(delayedLoop,300);
 $("#cookies").css("visibility",'hidden');
 
@@ -169,4 +222,3 @@ function format_cookies(bytes)
     var i = parseInt(Math.log(bytes) / Math.log(1000));
     return Math.round(bytes *10 / Math.pow(1000, i), 2) /10 + sizes[i];
 }
-
